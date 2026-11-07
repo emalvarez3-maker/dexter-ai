@@ -26,3 +26,7 @@ kotlin-js-store
 !/README.es.md
 !/docs/*.md
 .kotlin
+
+# Runs of the graph workflow (graph.md, checks.md, progress.md) can hold personal data
+.claude/
+!/CLAUDE.md
