@@ -76,7 +76,38 @@ Guárdalas en memoria en la cuenta nueva.
 - Hecho y probado: voz, hábitos y tareas, Camino con roadmaps, Finanzas con ahorro, Consciencia, memoria, avisos, alarma a pantalla completa, recordatorios sin IA.
 - Sin probar con el usuario: que «Oye Dexter» arranque solo tras reiniciar el teléfono.
 - Bloqueado por el usuario: Gmail necesita el cliente OAuth en Google Cloud.
-- En curso: «Encargos» (Dexter trabaja en segundo plano y con horario), diseñado en `.claude/runs/2026-11-10-encargos/graph.md`, a la espera de aprobación.
+- En curso: «Encargos» (Dexter trabaja en segundo plano y con horario). Ver la sección siguiente.
+
+## Trabajo a medias: Encargos (cortado el 2026-11-10)
+
+Grafo aprobado por el usuario. Idea tomada de wangzan101/Mika (solo conceptos; su código y sus binarios no se usan). El grafo y el progreso completos están en `.claude/runs/2026-11-10-encargos/` del PC original (fuera de git); lo esencial está aquí.
+
+**Qué es:** el usuario dice «averigua X y avísame» y un agente trabaja sin voz ni pantalla; también encargos con horario y condición («cada mañana revisa el clima y dime solo si llueve»).
+
+**Hecho y subido (N0):** `ancla/tasks/Encargo.kt` es el contrato: `Encargo`, `EncargoState`, `Recurrence`, `EncargoBook`, `EncargoControl`, `UsageSink`, `AgentUsage`. Los agentes Gemini y Claude ya reportan sus tokens a `AgentUsage`. Compila; línea base previa: 188 tests, 0 fallos.
+
+**Lanzado en subagentes y sin verificar (puede haber archivos a medias en el PC original, sin subir):**
+
+| Nodo | Archivos nuevos | Qué hace |
+|---|---|---|
+| N1 | `tasks/EncargoStore.kt`, `tasks/EncargoSchedule.kt` + tests | Almacén cifrado y cálculo de próximas ejecuciones |
+| N2 | `tasks/EncargoRunner.kt`, `tasks/EncargoActions.kt` + test | Corre el agente en segundo plano; `EncargoPrompts` arma el mensaje y decide si avisar |
+| N4 | `tasks/TokenLedger.kt`, `tasks/UsageScreen.kt`, `strings_usage.xml` + test | Gasto de IA por día y modelo |
+| N5 | `tasks/EncargosScreen.kt`, `tasks/EncargoNotifier.kt`, `strings_encargos.xml` | Pantalla de encargos y notificaciones |
+| N6 | `assistant/WebLookup.kt` + test | Búsqueda web con fuentes vía Gemini (falta probar que funciona en la capa gratis) |
+
+**Falta:**
+1. Compilar y correr los tests con esos archivos; corregir lo que falle (si no existen, rehacer el nodo con la tabla de arriba).
+2. N3: `EncargoService` (servicio en primer plano que aloja el runner) y alarmas exactas para los programados, con arranque tras reinicio.
+3. N7: herramienta `encargo` (crear, listar, parar) y `web_lookup` en `GeminiAgent`, `ClaudeAgent` y `AnclaActions`; instrucciones del agente; registrar actividad, servicio, receptor y permiso `FOREGROUND_SERVICE_DATA_SYNC` en el manifest; entrada «Encargos» en el menú.
+4. Checks fijos, instalar en el Pixel y subir a las dos cuentas.
+
+**Reglas de este trabajo:**
+- Un encargo nunca confirma nada: si una herramienta pide «CONFIRMACIÓN NECESARIA», se detiene en `WAITING_USER` y avisa.
+- En segundo plano no se toca la pantalla ni se abre nada; solo `phone_status`, `phone_calendar` y `phone_alarm` del teléfono.
+- El resultado se guarda cifrado y la notificación no lo muestra en la pantalla de bloqueo.
+- Tope: 6 pasos de modelo por encargo y 3 encargos a la vez.
+- Los subagentes no ejecutan Gradle (varios builds a la vez se bloquean); compila y prueba solo el orquestador. Archivos compartidos (agentes, `AnclaActions`, `DexterService`, manifest, `strings_ancla.xml`) solo los toca el orquestador.
 
 ## Otros proyectos del mismo usuario
 

@@ -784,9 +784,12 @@ class GeminiAgent(private val apiKey: String, private val actions: AgentActions)
             }
             val parts = JSONArray()
             var finish = ""
+            var usage: Pair<Long, Long>? = null
             conn.inputStream.bufferedReader().useLines { lines ->
                 lines.filter { it.startsWith("data:") }.forEach { line ->
                     val chunk = JSONObject(line.removePrefix("data:").trim())
+                    // The last chunk carries the call's token counts: kept for the usage ledger.
+                    chunk.optJSONObject("usageMetadata")?.let { u -> usage = u.optLong("promptTokenCount") to (u.optLong("candidatesTokenCount") + u.optLong("thoughtsTokenCount")) }
                     val candidate = chunk.optJSONArray("candidates")?.optJSONObject(0) ?: return@forEach
                     candidate.optString("finishReason").takeIf { it.isNotEmpty() }?.let { finish = it }
                     val chunkParts = candidate.optJSONObject("content")?.optJSONArray("parts") ?: return@forEach
@@ -798,6 +801,7 @@ class GeminiAgent(private val apiKey: String, private val actions: AgentActions)
                 }
             }
             reusable = true
+            usage?.let { (input, output) -> org.isoron.uhabits.ancla.tasks.AgentUsage.report(model, input, output) }
             return parts to finish
         } catch (e: IOException) {
             throw AgentException(AgentException.Kind.NETWORK, e.message ?: "network")

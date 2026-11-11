@@ -853,6 +853,7 @@ class ClaudeAgent(apiKey: String, private val actions: AgentActions) : Assistant
                     .build()
                 val response = client.beta().messages().create(params)
                 history.add(response.toParam())
+                runCatching { org.isoron.uhabits.ancla.tasks.AgentUsage.report(response.model().asString(), response.usage().inputTokens(), response.usage().outputTokens()) }
 
                 val stop = response.stopReason().orElse(null)
                 if (stop == BetaStopReason.REFUSAL) throw AgentException(AgentException.Kind.REFUSED, "refused")
